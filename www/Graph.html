@@ -1,0 +1,250 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                       <script>
+var _manager;
+var _nodeInstanceCounter = 1;
+var _stateMachine;
+
+
+$(document).ready(function () {
+	$('#btnSelect').click(function() {
+		// When the Select button is pressed, a mouse click represents dragging the node
+		_stateMachine.select();
+	});
+	
+	$('#btnAddNode').click(function() {
+		// When the Add Node button is pressed, a mouse click adds a node
+		_stateMachine.addNode();
+	});
+
+	$('#btnAddEdge').click(function() {
+		// When the Add Edge button is pressed, click and drag between two nodes to add the edge
+		_stateMachine.addEdge();
+	});
+
+	$('.button').click(function() {
+		// When the Add Edge button is pressed, click and drag between two nodes to add the edge
+		$('.button').removeClass('pressed');
+		$(this).addClass('pressed');
+	});
+	
+	_manager = new Graph.Manager(
+			'divCanvas',
+			800,
+			800
+	);
+	
+	_manager.registerListeners();
+	
+	_stateMachine = new StateMachine();
+	_stateMachine.select();
+	
+	var lastNode = null;
+	
+	// Add 100 nodes with edges between subsequent nodes
+	for(var i=0; i<100; i++) {
+		var r = Math.floor(Math.random() * 225);
+		var g = Math.floor(Math.random() * 225);
+		var b = Math.floor(Math.random() * 225);
+		var color = 'rgb(' + r + ',' + g + ',' + b + ')';
+		
+		var node = addNode(color, Math.floor(Math.random() * 799),Math.floor(Math.random() * 799));
+		
+		if (lastNode != null) {
+			_manager.addEdge(lastNode, node);
+		}
+		lastNode = node;
+	}
+	
+	_manager.paint();
+	
+});
+
+function addNode(color, x, y) {
+	return _manager.addNode(color, new Graph.Coordinates(x, y), 20);
+}
+
+function doAddNode(evt, manager) {
+	var r = Math.floor(Math.random() * 225);
+	var g = Math.floor(Math.random() * 225);
+	var b = Math.floor(Math.random() * 225);
+	var color = 'rgb(' + r + ',' + g + ',' + b + ')';
+	var node = addNode(color, evt.offsetX, evt.offsetY);
+	_manager.paint();	
+}
+
+function doEdgeMouseDown(evt, manager) {
+	if (!(_stateMachine.subState == 'Dragging')) {
+		var hits = manager.hitTest(evt);
+		if (hits != null) {
+		 	_stateMachine.subState = 'Dragging';
+		 	_stateMachine.data = hits[0];
+		}
+	}
+}
+
+function doSelectMouseOver(evt, manager) {
+	if (manager.hitTest(evt) != null) {
+		$('#divCanvas').css('cursor', 'pointer');
+	} else {
+		$('#divCanvas').css('cursor', 'auto');
+	}
+}
+
+function doEdgeMouseUp(evt, manager) {
+	var hits = manager.hitTest(evt);
+	if (_stateMachine.subState == 'Dragging' && _stateMachine.data != null) {
+		if (hits != null)
+			_manager.addEdge(_stateMachine.data.getNode(), hits[0].getNode());
+		else
+			alert('You must end at a node');
+	}
+	_stateMachine.subState = 'None';
+	_stateMachine.data = null;
+	manager.paint();
+}
+
+function doEdgeMouseMove(evt, manager) {
+	if (_stateMachine.subState == 'Dragging' && _stateMachine.data != null) {
+		manager.paintWithCallback(function(context) {
+
+			var deltaX = _stateMachine.data.getNode().getPosition().x - evt.offsetX;
+			var deltaY = _stateMachine.data.getNode().getPosition().y - evt.offsetY;
+			var coordStart;
+			var coordStop = new Graph.Coordinates(evt.offsetX, evt.offsetY);
+			
+			if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+				coordStart = (deltaX < 0) ? _stateMachine.data.getNode().getRight() : _stateMachine.data.getNode().getLeft();
+			} else {
+				coordStart = (deltaY < 0) ? _stateMachine.data.getNode().getTop() : _stateMachine.data.getNode().getBottom();
+			}
+
+			context.save();
+
+			// Draw line and arrow from parent to child
+			context.strokeStyle = 'rgb(0,0,0)';
+			context.fillStyle = 'rgb(0,0,0)';
+			context.beginPath();
+			context.moveTo(coordStart.x,coordStart.y);
+			context.lineTo(coordStop.x,coordStop.y);
+			context.closePath();
+			context.stroke();
+			context.fill();
+			
+			context.restore();		
+		});
+	}
+}
+
+function doSelectDragMouseDown(evt, manager) {
+	if (!(_stateMachine.subState == 'Dragging')) {
+		var hits = manager.hitTest(evt);
+		if (hits != null) {
+		 	_stateMachine.subState = 'Dragging';
+		 	_stateMachine.data = hits[0];
+		}
+	}
+}
+
+function doSelectDragMouseUp(evt, manager) {
+	if (_stateMachine.subState == 'Dragging' && _stateMachine.data != null) {
+		_stateMachine.data.getNode().setPosition(evt.offsetX - _stateMachine.data.getOffset().x, evt.offsetY - _stateMachine.data.getOffset().y);
+	}
+	_stateMachine.subState = 'None';
+	_stateMachine.data = null;
+	manager.paint();
+}
+
+function doSelectDragMouseMove(evt, manager) {
+	if (_stateMachine.subState == 'Dragging' && _stateMachine.data != null) {
+		_stateMachine.data.getNode().setPosition(evt.offsetX - _stateMachine.data.getOffset().x, evt.offsetY - _stateMachine.data.getOffset().y);
+	}
+	manager.paint();
+}
+
+var StateMachine = function() {
+	this.subState = 'None';
+	this.data = null;
+};
+StateMachine.prototype.select = function(){
+	this.subState = 'None';
+	_manager.clearEventListeners('mousedown');
+	_manager.clearEventListeners('mouseup');
+	_manager.clearEventListeners('mousemove');
+	_manager.clearEventListeners('mouseover');
+	_manager.addEventListener('mousedown', doSelectDragMouseDown);
+	_manager.addEventListener('mouseup', doSelectDragMouseUp);
+	_manager.addEventListener('mousemove', doSelectDragMouseMove);
+	_manager.addEventListener('mousemove', doSelectMouseOver);
+};
+StateMachine.prototype.addNode = function(){
+	this.subState = 'None';
+	_manager.clearEventListeners('mousedown');
+	_manager.clearEventListeners('mouseup');
+	_manager.clearEventListeners('mousemove');
+	_manager.clearEventListeners('mouseover');
+	_manager.addEventListener('mousedown', doAddNode);
+};
+StateMachine.prototype.addEdge = function(){
+	this.subState = 'None';
+	_manager.clearEventListeners('mousedown');
+	_manager.clearEventListeners('mouseup');
+	_manager.clearEventListeners('mousemove');
+	_manager.clearEventListeners('mouseover');
+	_manager.addEventListener('mousedown', doEdgeMouseDown);
+	_manager.addEventListener('mouseup', doEdgeMouseUp);
+	_manager.addEventListener('mousemove', doEdgeMouseMove);
+};
+
+
+</script>
