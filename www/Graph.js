@@ -31,6 +31,7 @@ Graph.Manager = function(containerId, width, height) {
 	this.width = width;
 	this.nodes = [];
 	this.edges = [];
+	this.edgez = [];
 	this.eventListeners = {};
 	
 	// Set the HTML5 Canvas object
@@ -48,6 +49,7 @@ Graph.Manager = function(containerId, width, height) {
 Graph.Manager.prototype.addNode = function(fillcolor, position, radius) {
 	node = new Graph.Node(this, fillcolor, position, radius);
 	this.nodes.push(node);
+	this.edgez.push(new Array());
 	return node;
 };
 
@@ -59,7 +61,83 @@ Graph.Manager.prototype.addNode = function(fillcolor, position, radius) {
  */
 Graph.Manager.prototype.addEdge = function(parentNode, childNode) {
 	var edge = new Graph.Edge(parentNode, childNode);
+	if (parentNode==childNode){
+		return edge;
+	}
 	this.edges.push(edge);
+	var pn=0;
+	var cn=0;
+	for(var i=0; i<this.nodes.length; i++) {
+		if(this.nodes[i]==parentNode){
+		pn=i;
+		}
+		if(this.nodes[i]==childNode){
+		cn=i;
+		}
+	}
+	this.edgez[pn].push(cn);
+	this.edgez[cn].push[pn];
+
+	//coloring start
+	var len=this.nodes.length;
+	var colornum=1;
+	var colors=[1];
+	var pool=[0];
+	for(var i=1; i<=len; i++) {
+		colors[i]=0;
+		pool[i]=0;
+	}
+	var flag=0;
+	for(; colornum<=len; colornum++){
+		flag=0;
+
+/**
+		for(int i=1; i>0; ){
+			if(i==len){
+
+				for (int j=1; j<=colornum; j++){
+					//var color='#'+(0x1000000+(Math.random())*0xffffff).toString(16).substr(1,6);
+					for (int k=0; k<len;k++){
+						if(colors[k]==j){
+						//this.nodes[k].fillColor=color;
+						}
+					}
+				}
+
+				colors=function(){};
+				pool=function(){};
+				return edge;
+			}
+			flag=1;
+			for(var j=0; j<len; i++){
+				pool[j]=0;
+			}
+			for(int j=0; j<this.edgez[i].length&&this.edgez[i][j]<i; j++){
+				pool[this.edgez[i][j]]=1;
+			}
+			for(int j=coloring[i]+1; j<=colornum; j++){
+				if(pool[j]==0){
+					coloring[i]=j;
+					i++;
+					flag=0;
+					break;
+				}
+			}
+			if(flag==1){
+				coloring[i]=0;
+				i--;
+			}
+		}
+*/
+
+		for(var i=0; i<len; i++) {
+			colors[i]=0;
+		}
+	}
+
+
+	//coloring end
+
 	return edge;
 };
 
