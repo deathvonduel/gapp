@@ -4,110 +4,243 @@
 <style>
 </style>
 </head>
-
 <body>
 
 <script>
-  nodes=[];
-  edges=[];
-  edgez=[];
-  pool=[];
-  colors=[]
-  edgest=0;
-  edgefirst=0;
-  colorpool=["red","black","yellow","blue","coral","crimson","darkblue","gray"];
+//global variable set up:
+  //simple storage variables:
+  nodes=[];//list of nodes, or vertices
+  edges=[];//list of all the edges, for drawing purposes
+  edgez=[];//list of edge by vertices, for colouring purposes
+  
+  //coloring service variables:
+  pool=[];//individual node colour pool during colouring operation and for Hamiltonian reach check
+  colors=[];//the colour of each vertices
+  colorpool=["red","black","yellow","blue","coral","crimson","darkblue","gray"];  
+  //the initial colour pool, expand automatically when more are needed.
+  
+  //state variables:
+  edgest=0;//a check mark for whether any node is selected
+  edgefirst=0;//if a node is selected, this is where it is stored
+  cirsi=20;//the size of the cricles representing the nodes
+
+  //Hamiltonian path service variables:
+  isHam=0;//whether or not the graph is Hamiltonian
+  isHamP=0;//whether or not the graph is even possible to be Hamiltonian--connected and have at least 2 edge per vertices
+  hamPath=[];//the array to store the path, if one exists.
+  
+  //recursive service function for connCheck
+  function connCheckRe(looknode){
+	for (var i=0; i<edgez[looknode].length; i++){
+		if(pool[edgez[looknode][i]]==0){
+			pool[edgez[looknode][i]]=1;
+			connCheckRe(edgez[looknode][i]);
+		}
+	}
+  }
+  //connectivity check, service function for hamcheck
+  function connCheck(){
+	for (var i=0; i<nodes.length; i++){
+		pool[i]=0;
+	}
+	pool[0]=1;
+	connCheckRe(0);
+	for (var i=0; i<nodes.length; i++){
+		if (pool[i]==0){
+			return;
+		}
+	}
+	isHamP=1;
+  }
+  
+  //recursive ham cycle service
+  function hamRe(looknode, layer){
+	hamPath[layer]=looknode;
+	pool[looknode]=1;
+	if (layer==nodes.length-1){
+		//if this is the last node
+		for (var i=0; i<edgez[looknode].length; i++){
+			if(edgez[looknode][i]==0){
+			//if it is connected to the first node, path is found
+				isHam=1;
+				return;
+			}
+		}
+	}
+	else{
+		var newlayer=layer+1;
+		//otherwise, go to the next layer by trying every connected but unreached node
+		for (var i=0; i<edgez[looknode].length&&isHam==0; i++){
+			if(pool[edgez[looknode][i]]==0){
+				hamRe(edgez[looknode][i], newlayer);
+			}
+		}
+	}
+	pool[looknode]=0;
+  }
+  //Hamiltonian path check/finder
+  function hamcheck(){
+	if(isHamP==0){
+		//if we are not sure if ham path is even possible, check if it is
+		connCheck.call();
+		if(isHamP==0){
+			return;
+		}
+		for (var i=0; i<nodes.length; i++){
+			if (edgez[i].length<2){
+				isHamP=0;
+				return;
+			}
+		}
+	}
+	if(isHamP==1){
+	//if we know, after checking, that it is at least possible, we check if one exist
+		//reset the pool
+		for (var i=0; i<nodes.length; i++){
+			pool[i]=0;
+		}
+		pool[0]=1;
+		hamPath[0]=0;
+		for (var i=0; i<edgez[0].length-1&&isHam==0; i++){
+		//try to find a path for each adjacent edge except last, as if none is found before last, last cant have one.
+			hamRe(edgez[0][i], 1);
+		}
+	}
+  }
+  //optimal colouring method
   function coloring2(){
+	//number of total nodes, will be used often so stored in an easier to reach variable
 	var len=nodes.length;
-	var ender=1;
+	
+	//initializing the pool and colors arrays
 	colors[0]=1;
 	pool[0]=0;
 	for(var i=1; i<=len; i++){
 		colors[i]=0;
 		pool[i]=0;
 	}
+	
+	//starting at 1 colors, keep trying to color all. increase color if there is no solution for current number
 	for (var colornum=1; colornum<=len; colornum++){
-		var flag=1;
+		var flag=1;//signal flag for if a backstep was performed
 		for (var i=1; i>0; ){
+		//loop to color everything, if we goes back to the first node, proving that coloring is impossible, 
+		//the outerloop will be used to increase color number
 			if (i==len){
+			//if we are at the last node, that means we have reached a successful coloring
 				for (var j=0; j<len; j++){
-					nodes[j].color=colorpool[colors[j]-1];
+					if (edgez[j].length>0){
+						nodes[j].color=colorpool[colors[j]-1];
+					}
+					else{
+						nodes[j].color=colorpool[0];
+					}
+					//we assign the colors to each node based on the color array
 				}
+				//then we draw it and end the function call.
 				draw.call();
 				return;
 			}
+			//reset the flag each round
 			flag=1;
+			//reset the pool each round
 			for(var k=0; k<=len; k++){
 				pool[k]=0;
 			}
+			//go through all the edge of the current node, eliminating all colors used in neighbours
 			for(var j=0; j<edgez[i].length;j++){
 				pool[colors[edgez[i][j]]]=1;
 			}
+			//find the first color that is unused after the current one, hence trying all unused color in sequence
 			for (var j=colors[i]+1; j<=colornum; j++){
 				if (pool[j]==0){
 					colors[i]=j;
-					i++;
-					flag=0;
+					i++;//if one is found, we will go to the next vertices on the next run
+					flag=0;//and set the flag
 					break;
 				}
 			}
-			if(flag==1){
-				colors[i]=0;
-				i--;
+			if(flag==1){//if none is found
+				colors[i]=0;//reset the coulour
+				i--;//and backstep
 			}
 		}
+		//should colors be insufficent
+		//reset all coloring
 		colors[0]=1;
 		for(var k=1; k<len; k++){
 				colors[k]=0;
 		}
+		//if we will need more colors than the current colorpool have, add a new one to the pool
 		if (colornum>colorpool.length-1){
 				colorpool.push('#'+Math.floor(Math.random()*16777215).toString(16));
 		}
 	}
 	draw.call();
   }
+  
+  //greedy coloring
   function coloring(){
+  //get the current node length
 	var len=nodes.length;
+	//set to minimal color count
 	var colornum=1;
+	//initilize the color and pool array
 	colors[0]=1;
 	pool[0]=0;
 	for(var i=1; i<=len; i++) {
 		colors[i]=0;
 		pool[i]=0;
 	}
+	
+	//for each node
 	for (var i=1; i<len; i++){
+	//reset the pool
 		for(var j=0; j<=colornum; j++){
 			pool[j]=0;
 		}
+		//check off all the used adjacent colors
 		for(var j=0; j<edgez[i].length;j++){
 			pool[colors[edgez[i][j]]]=1;
 		}
+		//find the first unused color and assign it to the node
 		for(var j=1; j<=colornum; j++){
 			if (pool[j]==0){
 				colors[i]=j;
 				break;
 			}
 		}
+		//if all colors are used, increase colornum and assign it to the node
 		if (colors[i]==0){
 			colornum++;
 			colors[i]=colornum;
+			//if more than what the colorpool have is needed, add a new one to the pool
 			if (colornum>colorpool.length){
 				colorpool.push('#'+Math.floor(Math.random()*16777215).toString(16));
 			}
 		}
 	}
-	for (var j=1; j<=colornum; j++){
-		for (var k=0; k<len;k++){
-			if(colors[k]==j){
-				nodes[k].color=colorpool[j-1];
-			}
+	//assign to nodes the colors hereby found
+	for (var j=0; j<nodes.length; j++){
+		if (edgez[j].length>0){
+			nodes[j].color=colorpool[colors[j]-1];
+		}
+		else{
+			nodes[j].color=colorpool[0];
 		}
 	}
+	//and draw them all
 	draw.call();
   }
+  
+  //draw everything
   function draw(){
+  //initialize the parameters
 	var canvas = document.getElementById("draw_canvas");
 	var context = canvas.getContext("2d");
+	//clear the whole canvas
 	context.clearRect(0,0,canvas.width,canvas.height);
+	//draw every edge
 	for (var i=0; i<edges.length; i++){
 		var x1=nodes[edges[i].first].xcoord;
 		var y1=nodes[edges[i].first].ycoord;
@@ -119,67 +252,164 @@
 		context.lineTo(x2,y2);
 		context.stroke();
 	}
+	if (isHam==1){//if a ham path exists
+		context.lineWidth=3;//change width to make it special
+	//draw it. obivously if the path exist and is valid, edges exist, so just follow the path
+		for (var i=0; i<nodes.length-1; i++){
+			var x1=nodes[hamPath[i]].xcoord;
+			var y1=nodes[hamPath[i]].ycoord;
+			var x2=nodes[hamPath[i+1]].xcoord;
+			var y2=nodes[hamPath[i+1]].ycoord;
+			context.beginPath();
+			context.strokeStyle="red";
+			context.moveTo(x1,y1);
+			context.lineTo(x2,y2);
+			context.stroke();
+		}
+		var x1=nodes[hamPath[0]].xcoord;
+		var y1=nodes[hamPath[0]].ycoord;
+		var x2=nodes[hamPath[nodes.length-1]].xcoord;
+		var y2=nodes[hamPath[nodes.length-1]].ycoord;
+		context.beginPath();
+		context.strokeStyle="red";
+		context.moveTo(x1,y1);
+		context.lineTo(x2,y2);
+		context.stroke();
+	}
+	context.lineWidth=1;//change width back, if it was schanged
+	//draw every node
 	for (var i=0; i<nodes.length; i++){
 		var x=nodes[i].xcoord;
 		var y=nodes[i].ycoord;
 		var color=nodes[i].color
 		context.beginPath();
-		context.arc(x,y,20,0,2*Math.PI);
+		context.arc(x,y,cirsi,0,2*Math.PI);
 		context.strokeStyle = "black";
 		context.fillStyle = color;
 		context.stroke();
 		context.fill();
 	}
-	
   }
+  
+  //when you click on the canvas, this is done
   function clickFunction(event) {
+  //intilize the parameters
     var canvas = document.getElementById("draw_canvas");
     var context = canvas.getContext("2d");
     event = event || window.event;
+	//and get the click location
     var x = event.pageX - canvas.offsetLeft;
     var y = event.pageY - canvas.offsetTop;
+	//default as not clicking on node
 	var atnode=-1;
+	//then check around every node to see if it qualifies as clicking on a node, based on representive size of the nodes
 	for (var i=0; i<nodes.length; i++){
 		var dist=Math.pow(nodes[i].xcoord-x,2)+Math.pow(nodes[i].ycoord-y,2);
-		if (dist<1600){
+		if (dist<(cirsi*cirsi*4)){
 			atnode=i;
 			break;
 		}
 	}
+	
+	//if no node was selected and clicking on an empty region
     if(edgest==0&&atnode==-1){
-	nodes[nodes.length]={xcoord:x, ycoord:y, color:"black"};
-	context.beginPath();
-    context.arc(x,y,20,0,2*Math.PI);
-    context.strokeStyle = "black";
-    context.fillStyle = "red";
-    context.stroke();
-    context.fill();
-	edgez.push([]);
+		//add a new node and draw it
+		nodes[nodes.length]={xcoord:x, ycoord:y, color:"red"};
+		context.beginPath();
+		context.arc(x,y,cirsi,0,2*Math.PI);
+		context.strokeStyle = "black";
+		context.fillStyle = "red";
+		context.stroke();
+		context.fill();
+		edgez.push([]);
+		if (isHam==1){
+			isHam=0;//if a node is freshly added, it's obviously cannot have a ham path
+			isHamP=0;
+			draw.call();
+		}
     }
 	else{
-		if (edgest==0){
+		if (edgest==0){//if no node was selected and clicking on a node
 			edgefirst=atnode;
-			edgest=1;
+			edgest=1;//"select" it
+			context.beginPath();
+			context.arc(nodes[atnode].xcoord,nodes[atnode].ycoord,cirsi*1.5,0,2*Math.PI);
+			context.strokeStyle = "black";
+			context.fillStyle = nodes[atnode].color;
+			context.stroke();
+			context.fill();
+			//and draw it bigger to represent the selection
 		}
 		else {
-		//cancel edgest anyways, draw edge if it is a node and just cancel selection otherwise
-			edgest=0;
-			if(atnode==-1){
+		//if a node was selected
+			edgest=0;//it will be unselected regardless
+			if(atnode==-1){//if the new click is at an empty space, move it there
 				nodes[edgefirst].xcoord=x;
 				nodes[edgefirst].ycoord=y;
 				draw.call();
+				//and redraw the picture
 			}
-			else if(atnode!=edgefirst){
+			else if(atnode!=edgefirst){//if it's between two different nodes
+				for (var j=0; j<edgez[atnode].length; j++){//check if the edge already exist
+					if (edgez[atnode][j]==edgefirst){//if it does, do the following
+						//find it on the all edge list
+						var inddel=0;
+						for (var k=0; k<edges.length; k++){
+							if ((edges[k].first==edgefirst&&edges[k].second==atnode)||(edges[k].second==edgefirst&&edges[k].first==atnode)){
+								inddel=k;
+								break;
+							}
+						}
+						//find it on the sub list for each vertices
+						var indone=edgez[atnode].indexOf(edgefirst);
+						var indtwo=edgez[edgefirst].indexOf(atnode);
+						//delete the entries
+						edges.splice(inddel, 1);
+						edgez[atnode].splice(indone,1);
+						edgez[edgefirst].splice(indtwo,1);
+						if (isHam==1){//if a ham cycle exists
+						//removal of edge might destroy the ham cycle, check if it does
+							if ((hamPath[0]==atnode&&hamPath[nodes.length-1]==edgefirst)||(hamPath[0]==edgefirst&&hamPath[nodes.length-1]==atnode)){
+								isHam=0;
+								isHamP=0;
+								hamcheck.call();
+							}
+							for (var k=0; k<nodes.length-1; k++){
+								if ((hamPath[k]==atnode&&hamPath[k+1]==edgefirst)||(hamPath[k]==edgefirst&&hamPath[k+1]==atnode)){
+									isHam=0;
+									isHamP=0;
+									hamcheck.call();
+									break;
+								}
+							}
+						}
+						//recolor and redraw the graph
+						var e = document.getElementById("srt").value;
+						if(e=="greedy"){
+							coloring.call();
+						}
+						else{
+							coloring2.call();
+						}
+						return; //event ends
+					}
+				}
+				//if no edge exists, draw it and add it
 				context.beginPath();
 				context.moveTo(nodes[atnode].xcoord,nodes[atnode].ycoord);
 				context.lineTo(nodes[edgefirst].xcoord,nodes[edgefirst].ycoord);
 				context.stroke();
 				edgez[edgefirst].push(atnode);
 				edgez[atnode].push(edgefirst);
+				//the sub edge list is always sorted
 				edgez[edgefirst].sort(function(a,b){return a-b});
 				edgez[atnode].sort(function(a,b){return a-b});
 				edges[edges.length]={first:edgefirst, second:atnode};
 				var e = document.getElementById("srt").value;
+				if (isHam==0){//if a ham path does not already exist, this might create it, check it
+					hamcheck.call();
+				}
+				//recolor the graph and redraw it.
 				if(e=="greedy"){
 					coloring.call();
 				}
@@ -187,13 +417,17 @@
 					coloring2.call();
 				}
 			}
+			else {
+			//if it is the same node, just redraw the picture(removing the enlarged circle)
+				draw.call();
+			}
 		}
 	
 	}
     
   }
   
-	function run() {
+	function run() {//service function for coloring method selection, set the selection and recolor
         document.getElementById("srt").value = document.getElementById("colorz").value;
 		var e = document.getElementById("srt").value;
 		if(e=="greedy"){
@@ -203,12 +437,29 @@
 			coloring2.call();
 		}
 	}
+	function circhan() {//service function for changing the circle sizes
+        cirsi= document.getElementById("sizesel").value;
+		draw.call();
+	}
+	//end of scripts, the following stuff are all simple UI.
 </script>
+Select colouring type: 
 <select id="colorz" onchange="run()">  <!--Call run() function-->
      <option value="greedy">Greedy</option>
      <option value="optimal" selected>Optimal</option>
 </select>
-<input type="text" id="srt" placeholder="get value on option select"><br>
+Select size: 
+<select id="sizesel" onchange="circhan()">  <!--Call run() function-->
+     <option value="5">5</option>
+	 <option value="10">10</option>
+	 <option value="15">15</option>
+     <option value="20" selected>20</option>
+	 <option value="30">30</option>
+</select>
+<input type="hidden" id="srt" placeholder="get value on option select">
+<form action="helps.html">
+    <input type="submit" value="Go to help page">
+</form>
 <center>
   <canvas id="draw_canvas" width="200" height="200" style="border:1px solid #000000;" onclick="clickFunction();"></canvas>
 </center>
